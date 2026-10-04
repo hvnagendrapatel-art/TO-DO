@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Drift — a to-do list that nudges back</title>
+<style>
+:root{
+  --ink:#1B2430; --card:#242F3D; --card2:#2C3846; --text:#F2EFE8; --sub:#9FB0C0;
+  --amber:#F2A65A; --sage:#7FB685; --rose:#E08585; --line:#3A4553;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){--ink:#F4F1E9; --card:#FFFFFF; --card2:#EFEAE0; --text:#20242B; --sub:#5B6572; --line:#DCD6C8;}
+}
+:root[data-theme="light"]{--ink:#F4F1E9; --card:#FFFFFF; --card2:#EFEAE0; --text:#20242B; --sub:#5B6572; --line:#DCD6C8;}
+:root[data-theme="dark"]{--ink:#1B2430; --card:#242F3D; --card2:#2C3846; --text:#F2EFE8; --sub:#9FB0C0; --line:#3A4553;}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-padding-top:env(safe-area-inset-top,0px); height:100%;}
+body{
+  height:100%; background:var(--ink); color:var(--text);
+  font-family:'Georgia',ui-serif,serif; line-height:1.4;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:920px; margin:0 auto; padding:28px 20px 60px;}
+header{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:22px; gap:12px;}
+h1{font-size:2rem; font-weight:400; letter-spacing:-0.01em;}
+h1 span{color:var(--amber);}
+.tagline{color:var(--sub); font-family:ui-sans-serif,system-ui,sans-serif; font-size:.88rem; margin-top:4px; max-width:38ch;}
+button, input, select, textarea{font-family:ui-sans-serif,system-ui,sans-serif;}
+.themebtn{background:var(--card2); border:1px solid var(--line); color:var(--text); border-radius:20px; padding:8px 14px; cursor:pointer; font-size:.85rem;}
+.themebtn:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible{outline:2px solid var(--amber); outline-offset:2px;}
+
+.grid{display:grid; grid-template-columns:1.6fr 1fr; gap:20px;}
+@media(max-width:760px){.grid{grid-template-columns:1fr;}}
+.card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px; margin-bottom:20px;}
+.card h2{font-weight:400; font-size:1.15rem; margin-bottom:14px; display:flex; align-items:center; gap:8px;}
+
+/* add task form */
+.addrow{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;}
+.addrow input[type=text]{flex:1 1 200px; min-width:0;}
+input[type=text], input[type=date]{
+  background:var(--card2); border:1px solid var(--line); color:var(--text);
+  padding:10px 12px; border-radius:8px; font-size:.92rem;
+}
+select{background:var(--card2); border:1px solid var(--line); color:var(--text); padding:10px 12px; border-radius:8px; font-size:.92rem;}
+.addbtn{background:var(--amber); color:#20242B; border:none; padding:10px 18px; border-radius:8px; font-weight:600; cursor:pointer; font-size:.92rem;}
+.addbtn:hover{filter:brightness(1.08);}
+
+/* tasks */
+ul.tasks{list-style:none;}
+.task{display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--line);}
+.task:last-child{border-bottom:none;}
+.task input[type=checkbox]{width:20px; height:20px; accent-color:var(--sage); cursor:pointer; flex-shrink:0;}
+.task .body{flex:1; min-width:0;}
+.task .txt{font-size:.98rem; word-break:break-word;}
+.task.done .txt{text-decoration:line-through; color:var(--sub);}
+.task .meta{font-family:ui-sans-serif,system-ui,sans-serif; font-size:.76rem; color:var(--sub); margin-top:2px;}
+.dot{width:9px; height:9px; border-radius:50%; display:inline-block; margin-right:6px;}
+.dot.high{background:var(--rose);} .dot.med{background:var(--amber);} .dot.low{background:var(--sage);}
+.delbtn{background:none; border:none; color:var(--sub); cursor:pointer; font-size:1.1rem; padding:4px 8px;}
+.delbtn:hover{color:var(--rose);}
+.empty{color:var(--sub); font-family:ui-sans-serif,system-ui,sans-serif; font-size:.9rem; padding:10px 0;}
+
+/* progress */
+.progress-outer{background:var(--card2); border-radius:20px; height:10px; overflow:hidden; margin:10px 0 6px;}
+.progress-inner{background:linear-gradient(90deg,var(--sage),var(--amber)); height:100%; transition:width .4s ease;}
+.stats-row{display:flex; justify-content:space-between; font-family:ui-sans-serif,system-ui,sans-serif; font-size:.82rem; color:var(--sub);}
+.streak{font-family:ui-sans-serif,system-ui,sans-serif; font-size:.92rem; margin-top:14px;}
+.streak b{color:var(--amber); font-size:1.3rem;}
+
+/* quote */
+.quote{font-style:italic; font-size:.98rem; color:var(--text); margin-bottom:10px; min-height:2.6em;}
+.quotebtn{background:none; border:1px solid var(--line); color:var(--sub); border-radius:8px; padding:6px 12px; cursor:pointer; font-size:.8rem;}
+
+/* smart suggest */
+.suggest-box{background:var(--card2); border-radius:10px; padding:12px 14px; font-family:ui-sans-serif,system-ui,sans-serif; font-size:.88rem; color:var(--text); margin-bottom:10px; min-height:2.4em;}
+.suggest-label{font-size:.7rem; text-transform:none; color:var(--sub); margin-bottom:4px;}
+
+/* wishlist */
+.wish{display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--line);}
+.wish:last-child{border-bottom:none;}
+.wish .star{cursor:pointer; color:var(--amber); font-size:1.1rem; flex-shrink:0;}
+.wish.got .txt{text-decoration:line-through; color:var(--sub);}
+
+/* sms */
+.smsbtn{background:var(--sage); color:#1B2430; border:none; padding:10px 16px; border-radius:8px; font-weight:600; cursor:pointer; font-family:ui-sans-serif,system-ui,sans-serif; font-size:.88rem; width:100%;}
+.smsnote{font-family:ui-sans-serif,system-ui,sans-serif; font-size:.75rem; color:var(--sub); margin-top:8px;}
+
+/* confetti */
+.confetti{position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:999; overflow:hidden;}
+.confetti span{position:absolute; top:-10px; font-size:18px; animation:fall 1.6s ease-in forwards;}
+@keyframes fall{to{transform:translateY(100vh) rotate(360deg); opacity:0;}}
+
+@media (prefers-reduced-motion: reduce){ .progress-inner{transition:none;} .confetti span{animation:none; display:none;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>TO-DO<span>.</span></h1>
+      <div class="tagline">A to-do list with a memory, a nudge, and a wish or two.</div>
+    </div>
+    <button class="themebtn" id="themeToggle">🌙 Theme</button>
+  </header>
+
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h2>Today's tasks</h2>
+        <div class="addrow">
+          <input type="text" id="taskInput" placeholder="What needs doing?" maxlength="120">
+          <select id="prioritySelect">
+            <option value="low">Low</option>
+            <option value="med" selected>Medium</option>
+            <option value="high">High</option>
+          </select>
+          <input type="date" id="dueInput">
+          <button class="addbtn" id="addBtn">Add</button>
+        </div>
+        <div class="progress-outer"><div class="progress-inner" id="progressBar" style="width:0%"></div></div>
+        <div class="stats-row"><span id="progressText">0 of 0 done today</span><span id="pctText">0%</span></div>
+        <ul class="tasks" id="taskList"></ul>
+      </div>
+
+      <div class="card">
+        <h2>💬 Smart suggestion</h2>
+        <div class="suggest-label">Rule-based nudge, not a live AI — picks from what's on your list.</div>
+        <div class="suggest-box" id="suggestBox">Add a task to get a suggestion.</div>
+        <button class="quotebtn" id="suggestBtn">New suggestion</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>🔥 Streak</h2>
+        <div class="streak">Current streak: <b id="streakNum">0</b> day(s) with at least one task finished.</div>
+        <div class="quote" id="quoteText">Small steps still move the line.</div>
+        <button class="quotebtn" id="quoteBtn">Another one</button>
+      </div>
+
+      <div class="card">
+        <h2>✨ Wishlist</h2>
+        <div class="addrow">
+          <input type="text" id="wishInput" placeholder="Something you want" maxlength="80">
+          <button class="addbtn" id="wishAddBtn">Add</button>
+        </div>
+        <ul id="wishList"></ul>
+      </div>
+
+      <div class="card">
+        <h2>📲 Send progress</h2>
+        <button class="smsbtn" id="smsBtn">Text today's completed tasks</button>
+        <div class="smsnote">Opens your phone's messaging app with the summary pre-filled — you choose the contact and tap send. Works on phones with SMS support; on desktop it may not open.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const todayKey=()=>new Date().toISOString().slice(0,10);
+let state=JSON.parse(localStorage.getItem('drift-state')||'null')||{tasks:[],wishes:[],streak:0,lastDoneDay:null};
+
+function save(){localStorage.setItem('drift-state',JSON.stringify(state));}
+
+const QUOTES=["Small steps still move the line.","Done is the engine of more done.","You don't need to feel ready to start.","Progress hides in the boring parts.","One task, then the next one.","Future you is grateful right now.","Momentum is just repeated starting.","The list gets shorter either way — pick a task."];
+function newQuote(){$('quoteText').textContent=QUOTES[Math.floor(Math.random()*QUOTES.length)];}
+$('quoteBtn').onclick=newQuote;
+
+function themeInit(){
+  const saved=localStorage.getItem('drift-theme');
+  if(saved) document.documentElement.setAttribute('data-theme',saved);
+}
+themeInit();
+$('themeToggle').onclick=()=>{
+  const cur=document.documentElement.getAttribute('data-theme');
+  const next = cur==='dark' ? 'light' : (cur==='light' ? 'dark' : (matchMedia('(prefers-color-scheme: dark)').matches?'light':'dark'));
+  document.documentElement.setAttribute('data-theme',next);
+  localStorage.setItem('drift-theme',next);
+};
+
+function confetti(){
+  const wrap=document.createElement('div'); wrap.className='confetti';
+  const emo=['🎉','✨','🌟','💫','🎊'];
+  for(let i=0;i<16;i++){
+    const s=document.createElement('span');
+    s.textContent=emo[Math.floor(Math.random()*emo.length)];
+    s.style.left=Math.random()*100+'%';
+    s.style.animationDelay=(Math.random()*0.3)+'s';
+    wrap.appendChild(s);
+  }
+  document.body.appendChild(wrap);
+  setTimeout(()=>wrap.remove(),2000);
+}
+
+function updateStreak(){
+  const tk=todayKey();
+  if(state.lastDoneDay===tk) return;
+  const y=new Date(Date.now()-86400000).toISOString().slice(0,10);
+  state.streak = state.lastDoneDay===y ? state.streak+1 : 1;
+  state.lastDoneDay=tk;
+}
+
+function render(){
+  const list=$('taskList'); list.innerHTML='';
+  if(state.tasks.length===0) list.innerHTML='<div class="empty">Nothing yet — add your first task above.</div>';
+  const todays=state.tasks;
+  todays.forEach(t=>{
+    const li=document.createElement('li'); li.className='task'+(t.done?' done':'');
+    const due = t.due ? `· due ${t.due}` : '';
+    li.innerHTML=`
+      <input type="checkbox" ${t.done?'checked':''} aria-label="Mark complete">
+      <div class="body">
+        <div class="txt"><span class="dot ${t.priority}"></span>${t.text}</div>
+        <div class="meta">${t.priority==='high'?'High priority':t.priority==='med'?'Medium priority':'Low priority'} ${due}</div>
+      </div>
+      <button class="delbtn" aria-label="Delete">✕</button>`;
+    li.querySelector('input').onchange=(e)=>{
+      t.done=e.target.checked;
+      if(t.done){ t.completedOn=todayKey(); updateStreak(); confetti(); }
+      save(); render();
+    };
+    li.querySelector('.delbtn').onclick=()=>{state.tasks=state.tasks.filter(x=>x.id!==t.id); save(); render();};
+    list.appendChild(li);
+  });
+
+  const tk=todayKey();
+  const doneToday=state.tasks.filter(t=>t.done && t.completedOn===tk).length;
+  const totalToday=state.tasks.length;
+  const pct= totalToday? Math.round(doneToday/totalToday*100):0;
+  $('progressBar').style.width=pct+'%';
+  $('progressText').textContent=`${doneToday} of ${totalToday} done today`;
+  $('pctText').textContent=pct+'%';
+  $('streakNum').textContent=state.streak;
+
+  const wl=$('wishList'); wl.innerHTML='';
+  if(state.wishes.length===0) wl.innerHTML='<div class="empty">No wishes yet — what are you working toward?</div>';
+  state.wishes.forEach(w=>{
+    const li=document.createElement('li'); li.className='wish'+(w.got?' got':'');
+    li.innerHTML=`<span class="star">${w.got?'★':'☆'}</span><div class="txt" style="flex:1">${w.text}</div><button class="delbtn">✕</button>`;
+    li.querySelector('.star').onclick=()=>{w.got=!w.got; if(w.got) confetti(); save(); render();};
+    li.querySelector('.delbtn').onclick=()=>{state.wishes=state.wishes.filter(x=>x.id!==w.id); save(); render();};
+    wl.appendChild(li);
+  });
+
+  suggest();
+}
+
+function suggest(){
+  const open=state.tasks.filter(t=>!t.done);
+  const box=$('suggestBox');
+  if(open.length===0){ box.textContent="Nothing open right now — maybe glance at your wishlist instead."; return; }
+  const rank={high:0,med:1,low:2};
+  const withUrgency=open.map(t=>{
+    let score=rank[t.priority]*10;
+    if(t.due){ const days=(new Date(t.due)-new Date(todayKey()))/86400000; if(days<0) score-=20; else score+=days; }
+    return {t,score};
+  }).sort((a,b)=>a.score-b.score);
+  const pick=withUrgency[0].t;
+  const overdue = pick.due && new Date(pick.due) < new Date(todayKey());
+  box.textContent = overdue
+    ? `"${pick.text}" is overdue — maybe start there.`
+    : `Try "${pick.text}" next — it's ${pick.priority==='high'?'high priority':'a good next step'}.`;
+}
+$('suggestBtn').onclick=suggest;
+
+$('addBtn').onclick=()=>{
+  const txt=$('taskInput').value.trim();
+  if(!txt) return;
+  state.tasks.unshift({id:Date.now(),text:txt,priority:$('prioritySelect').value,due:$('dueInput').value||null,done:false,completedOn:null});
+  $('taskInput').value=''; $('dueInput').value='';
+  save(); render();
+};
+$('taskInput').addEventListener('keydown',e=>{if(e.key==='Enter') $('addBtn').click();});
+
+$('wishAddBtn').onclick=()=>{
+  const txt=$('wishInput').value.trim();
+  if(!txt) return;
+  state.wishes.unshift({id:Date.now(),text:txt,got:false});
+  $('wishInput').value='';
+  save(); render();
+};
+$('wishInput').addEventListener('keydown',e=>{if(e.key==='Enter') $('wishAddBtn').click();});
+
+$('smsBtn').onclick=()=>{
+  const tk=todayKey();
+  const done=state.tasks.filter(t=>t.done && t.completedOn===tk);
+  const body = done.length
+    ? `Today I finished: ${done.map(t=>t.text).join(', ')}. Streak: ${state.streak} day(s).`
+    : `Checking in — no tasks finished yet today. Current streak: ${state.streak} day(s).`;
+  window.location.href = 'sms:?body=' + encodeURIComponent(body);
+};
+
+newQuote();
+render();
+</script>
+</body>
+</html>
